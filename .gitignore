@@ -17,3 +17,5 @@ cscope.*
 *.log
 *.pcap
 
+# tmp
+*.swp
