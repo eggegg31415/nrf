@@ -26,7 +26,7 @@ func HandleNFDeregisterRequest(request *http_wrapper.Request) *http_wrapper.Resp
 
 	// token verification
 	pubKeyPath  := "../support/TLS/ausf.pem"
-	response := OAuthVerify(request, "nnrf_nfm", pubKeyPath)
+	response := OAuthVerify(request, "nnrf-nfm", pubKeyPath)
 	if response != nil {
 		return response
 	}
