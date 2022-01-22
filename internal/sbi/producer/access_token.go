@@ -3,6 +3,7 @@ package producer
 import (
 	"net/http"
 	"time"
+	"io/ioutil"
 
 	"github.com/golang-jwt/jwt"
 
@@ -53,9 +54,29 @@ func AccessTokenProcedure(request models.AccessTokenReq) (response *models.Acces
 	}
 	accessTokenClaims.IssuedAt = int64(now)
 
-	mySigningKey := []byte("NRF") // AllYourBase
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, accessTokenClaims)
-	accessToken, err := token.SignedString(mySigningKey)
+	// Use RSA as a signing method
+	privKeyPath := "../support/TLS/nrf.key"
+	signBytes, err := ioutil.ReadFile(privKeyPath)
+	if err != nil {
+		logger.AccessTokenLog.Warnln("SigningBytes error: ", err)
+		errResponse = &models.AccessTokenErr{
+			Error: "invalid_request",
+		}
+
+		return nil, errResponse
+	}
+	signKey, err := jwt.ParseRSAPrivateKeyFromPEM(signBytes)
+	if err != nil {
+		logger.AccessTokenLog.Warnln("SigningKey error: ", err)
+		errResponse = &models.AccessTokenErr{
+			Error: "invalid_request",
+		}
+
+		return nil, errResponse
+	}
+	token := jwt.NewWithClaims(jwt.GetSigningMethod("RS512"), accessTokenClaims)
+	accessToken, err := token.SignedString(signKey)
+
 	if err != nil {
 		logger.AccessTokenLog.Warnln("Signed string error: ", err)
 		errResponse = &models.AccessTokenErr{
