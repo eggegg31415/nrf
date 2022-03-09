@@ -35,11 +35,12 @@ type Info struct {
 }
 
 type Configuration struct {
-	Sbi             *Sbi          `yaml:"sbi,omitempty"`
-	MongoDBName     string        `yaml:"MongoDBName"`
-	MongoDBUrl      string        `yaml:"MongoDBUrl"`
-	DefaultPlmnId   models.PlmnId `yaml:"DefaultPlmnId"`
-	ServiceNameList []string      `yaml:"serviceNameList,omitempty"`
+	Sbi             *Sbi               `yaml:"sbi,omitempty"`
+	MongoDBName     string             `yaml:"MongoDBName"`
+	MongoDBUrl      string             `yaml:"MongoDBUrl"`
+	DefaultPlmnId   models.PlmnId      `yaml:"DefaultPlmnId"`
+	ServiceNameList []string           `yaml:"serviceNameList,omitempty"`
+	ServiceList     []models.NfService `yaml:"serviceList,omitempty"`
 }
 
 type Sbi struct {
@@ -48,6 +49,7 @@ type Sbi struct {
 	// IPv6Addr  string `yaml:"ipv6Addr,omitempty"`
 	BindingIPv4 string `yaml:"bindingIPv4,omitempty"` // IP used to run the server in the node.
 	Port        int    `yaml:"port,omitempty"`
+	OAuth       bool   `yaml:"oauth,omitempty"`
 }
 
 func (c *Config) GetVersion() string {
