@@ -10,9 +10,9 @@
 package accesstoken
 
 import (
+	"encoding/json"
 	"net/http"
 	"reflect"
-	"encoding/json"
 
 	"github.com/gin-gonic/gin"
 
@@ -49,8 +49,19 @@ func HTTPAccessTokenRequest(c *gin.Context) {
 		if vt.Name() == "string" || vt.Name() == "NfType" {
 			reflect.ValueOf(&accessTokenReq).Elem().FieldByName(name).SetString(value[0])
 		} else {
-			var plmnid = models.PlmnId{}
-			json.Unmarshal([]byte(value[0]), &plmnid)
+			plmnid := models.PlmnId{}
+			err = json.Unmarshal([]byte(value[0]), &plmnid)
+			if err != nil {
+				problemDetail := "[Request Body] " + err.Error()
+				rsp := models.ProblemDetails{
+					Title:  "Jsone Unmarshal Error",
+					Status: http.StatusBadRequest,
+					Detail: problemDetail,
+				}
+				logger.AccessTokenLog.Errorln(problemDetail)
+				c.JSON(http.StatusBadRequest, rsp)
+				return
+			}
 			reflectvalue := reflect.ValueOf(&plmnid)
 			reflect.ValueOf(&accessTokenReq).Elem().FieldByName(name).Set(reflectvalue)
 		}
