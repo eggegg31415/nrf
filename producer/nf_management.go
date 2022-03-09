@@ -24,13 +24,6 @@ func HandleNFDeregisterRequest(request *http_wrapper.Request) *http_wrapper.Resp
 	logger.ManagementLog.Infoln("Handle NFDeregisterRequest")
 	nfInstanceId := request.Params["nfInstanceID"]
 
-	// token verification
-	pubKeyPath := "../support/TLS/nrf.pem"
-	response := OAuthVerify(request, "nnrf-nfm", pubKeyPath)
-	if response != nil {
-		return response
-	}
-
 	problemDetails := NFDeregisterProcedure(nfInstanceId)
 
 	if problemDetails != nil {
