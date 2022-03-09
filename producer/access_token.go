@@ -1,20 +1,22 @@
 package producer
 
 import (
-	"net/http"
-	"time"
+	"crypto/x509"
+	"encoding/pem"
 	"io/ioutil"
+	"net/http"
 	"strings"
+	"time"
 
 	"github.com/dgrijalva/jwt-go"
-	"go.mongodb.org/mongo-driver/bson"
 	"github.com/mitchellh/mapstructure"
+	"go.mongodb.org/mongo-driver/bson"
 
+	"github.com/free5gc/MongoDBLibrary"
 	"github.com/free5gc/http_wrapper"
 	nrf_context "github.com/free5gc/nrf/context"
 	"github.com/free5gc/nrf/logger"
 	"github.com/free5gc/openapi/models"
-	"github.com/free5gc/MongoDBLibrary"
 )
 
 func HandleAccessTokenRequest(request *http_wrapper.Request) *http_wrapper.Response {
@@ -69,7 +71,7 @@ func AccessTokenProcedure(request models.AccessTokenReq) (response *models.Acces
 	if err != nil {
 		logger.AccessTokenLog.Warnln("SigningBytes error: ", err)
 		errResponse = &models.AccessTokenErr{
-			Error:  "UNSPECIFIED",
+			Error: "UNSPECIFIED",
 		}
 
 		return nil, errResponse
@@ -78,18 +80,17 @@ func AccessTokenProcedure(request models.AccessTokenReq) (response *models.Acces
 	if err != nil {
 		logger.AccessTokenLog.Warnln("SigningKey error: ", err)
 		errResponse = &models.AccessTokenErr{
-			Error:  "UNSPECIFIED",
+			Error: "UNSPECIFIED",
 		}
 
 		return nil, errResponse
 	}
 	token := jwt.NewWithClaims(jwt.GetSigningMethod("RS512"), accessTokenClaims)
 	accessToken, err := token.SignedString(signKey)
-
 	if err != nil {
 		logger.AccessTokenLog.Warnln("Signed string error: ", err)
 		errResponse = &models.AccessTokenErr{
-			Error:  "UNSPECIFIED",
+			Error: "UNSPECIFIED",
 		}
 
 		return nil, errResponse
@@ -106,6 +107,7 @@ func AccessTokenProcedure(request models.AccessTokenReq) (response *models.Acces
 }
 
 func AccessTokenScopeCheck(req models.AccessTokenReq) (errResponse *models.AccessTokenErr) {
+	// Check with nf profile
 	collName := "NfProfile"
 	reqGrantType := req.GrantType
 	reqNfType := strings.ToUpper(string(req.NfType))
@@ -114,33 +116,113 @@ func AccessTokenScopeCheck(req models.AccessTokenReq) (errResponse *models.Acces
 
 	if reqGrantType != "client_credentials" {
 		errResponse = &models.AccessTokenErr{
-			Error:  "unsupported_grant_type",
+			Error: "unsupported_grant_type",
 		}
 		return errResponse
 	}
 
 	if reqNfType == "" || reqTargetNfType == "" || reqNfInstanceId == "" {
 		errResponse = &models.AccessTokenErr{
-			Error:  "invalid_request",
+			Error: "invalid_request",
 		}
 		return errResponse
 	}
 
 	filter := bson.M{"nfInstanceId": reqNfInstanceId}
 	nfInfo := MongoDBLibrary.RestfulAPIGetOne(collName, filter)
-	var nfProfile = models.NfProfile{}
-	mapstructure.Decode(nfInfo, &nfProfile)
-	if strings.ToUpper(string(nfProfile.NfType)) != reqNfType {
+
+	nfProfile := models.NfProfile{}
+	err := mapstructure.Decode(nfInfo, &nfProfile)
+	if err != nil {
+		logger.AccessTokenLog.Errorln("Certificate verify error: " + err.Error())
 		errResponse = &models.AccessTokenErr{
-			Error:  "invalid_client",
+			Error: "invalid_client",
 		}
 		return errResponse
 	}
 
+	if strings.ToUpper(string(nfProfile.NfType)) != reqNfType {
+		errResponse = &models.AccessTokenErr{
+			Error: "invalid_client",
+		}
+		return errResponse
+	}
+	// Check with certificate
+	rootPEM, err := ioutil.ReadFile("../support/TLS/root.crt")
+	if err != nil {
+		logger.AccessTokenLog.Errorln("Certificate verify error: " + err.Error())
+		errResponse = &models.AccessTokenErr{
+			Error: "invalid_client",
+		}
+		return errResponse
+	}
+	certPEM, err := ioutil.ReadFile("../support/TLS/" + reqNfType + ".crt")
+	if err != nil {
+		logger.AccessTokenLog.Errorln("Certificate verify error: " + err.Error())
+		errResponse = &models.AccessTokenErr{
+			Error: "invalid_client",
+		}
+		return errResponse
+	}
+
+	roots := x509.NewCertPool()
+	ok := roots.AppendCertsFromPEM(rootPEM)
+	if !ok {
+		logger.AccessTokenLog.Errorln("Certificate verify error: Append root cert error")
+		errResponse = &models.AccessTokenErr{
+			Error: "invalid_client",
+		}
+		return errResponse
+	}
+
+	block, _ := pem.Decode(certPEM)
+	cert, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		errResponse = &models.AccessTokenErr{
+			Error: "invalid_client",
+		}
+		return errResponse
+	}
+
+	opts := x509.VerifyOptions{
+		Roots:   roots,
+		DNSName: reqNfType,
+	}
+	if _, err = cert.Verify(opts); err != nil {
+		logger.AccessTokenLog.Errorln("Certificate verify error: " + err.Error())
+		errResponse = &models.AccessTokenErr{
+			Error: "invalid_client",
+		}
+		return errResponse
+	}
+	var check bool = false
+	for _, uri := range cert.URIs {
+		id := strings.Split(uri.Opaque, ":")[1]
+		if id == reqNfInstanceId {
+			check = true
+			break
+		}
+	}
+	if !check {
+		logger.AccessTokenLog.Errorln("Certificate verify error: NF Instance Id wrong")
+		errResponse = &models.AccessTokenErr{
+			Error: "invalid_client",
+		}
+		return errResponse
+	}
+
+	// filter = bson.M{"nfType": reqTargetNfType}
 	filter = bson.M{"nfType": reqNfType}
 	nfInfo = MongoDBLibrary.RestfulAPIGetOne(collName, filter)
 	nfProfile = models.NfProfile{}
-	mapstructure.Decode(nfInfo, &nfProfile)
+	err = mapstructure.Decode(nfInfo, &nfProfile)
+	if err != nil {
+		logger.AccessTokenLog.Errorln("Certificate verify error: " + err.Error())
+		errResponse = &models.AccessTokenErr{
+			Error: "invalid_client",
+		}
+		return errResponse
+	}
 	nfServices := *nfProfile.NfServices
 
 	scopes := strings.Split(req.Scope, " ")
@@ -160,9 +242,9 @@ func AccessTokenScopeCheck(req models.AccessTokenReq) (errResponse *models.Acces
 				break
 			}
 		}
-		if found == false {
+		if !found {
 			errResponse = &models.AccessTokenErr{
-				Error:  "invalid_scope",
+				Error: "invalid_scope",
 			}
 			return errResponse
 		}
