@@ -18,11 +18,18 @@ import (
 	"github.com/free5gc/nrf/logger"
 	"github.com/free5gc/openapi/Nnrf_NFManagement"
 	"github.com/free5gc/openapi/models"
+	"github.com/free5gc/openapi"
 )
 
 func HandleNFDeregisterRequest(request *http_wrapper.Request) *http_wrapper.Response {
 	logger.ManagementLog.Infoln("Handle NFDeregisterRequest")
 	nfInstanceId := request.Params["nfInstanceID"]
+
+	pubKeyPath  := "../support/TLS/nrf.pem"
+	response := openapi.OAuthVerify(request, "nnrf-nfm", pubKeyPath)
+	if response != nil {
+		return response
+	}
 
 	problemDetails := NFDeregisterProcedure(nfInstanceId)
 
