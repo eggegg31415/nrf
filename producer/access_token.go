@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dgrijalva/jwt-go"
+	"github.com/golang-jwt/jwt"
 	"github.com/mitchellh/mapstructure"
 	"go.mongodb.org/mongo-driver/bson"
 
@@ -156,7 +156,7 @@ func AccessTokenScopeCheck(req models.AccessTokenReq) (errResponse *models.Acces
 		}
 		return errResponse
 	}
-	certPEM, err := ioutil.ReadFile("../support/TLS/" + reqNfType + ".crt")
+	certPEM, err := ioutil.ReadFile("../support/TLS/" + strings.ToLower(reqNfType) + ".crt")
 	if err != nil {
 		logger.AccessTokenLog.Errorln("Certificate verify error: " + err.Error())
 		errResponse = &models.AccessTokenErr{
@@ -195,16 +195,11 @@ func AccessTokenScopeCheck(req models.AccessTokenReq) (errResponse *models.Acces
 		}
 		return errResponse
 	}
-	var check bool = false
-	for _, uri := range cert.URIs {
-		id := strings.Split(uri.Opaque, ":")[1]
-		if id == reqNfInstanceId {
-			check = true
-			break
-		}
-	}
-	if !check {
-		logger.AccessTokenLog.Errorln("Certificate verify error: NF Instance Id wrong")
+
+	uri := cert.URIs[0]
+	id := strings.Split(uri.Opaque, ":")[1]
+	if id == reqNfInstanceId {
+		logger.AccessTokenLog.Errorln("Certificate verify error: NF Instance Id mismatch (Expected ID: " + reqNfInstanceId + " Received ID: " + id + ")")
 		errResponse = &models.AccessTokenErr{
 			Error: "invalid_client",
 		}
@@ -228,10 +223,9 @@ func AccessTokenScopeCheck(req models.AccessTokenReq) (errResponse *models.Acces
 	scopes := strings.Split(req.Scope, " ")
 
 	for _, reqNfService := range scopes {
-		var nfService models.NfService
 		var found bool = false
 
-		for _, nfService = range nfServices {
+		for _, nfService := range nfServices {
 			if string(nfService.ServiceName) == reqNfService {
 				for _, nfType := range nfService.AllowedNfTypes {
 					if string(nfType) == reqNfType {
@@ -243,6 +237,7 @@ func AccessTokenScopeCheck(req models.AccessTokenReq) (errResponse *models.Acces
 			}
 		}
 		if !found {
+			logger.AccessTokenLog.Errorln("Certificate verify error: Request out of scope (" + reqNfService + ")")
 			errResponse = &models.AccessTokenErr{
 				Error: "invalid_scope",
 			}
