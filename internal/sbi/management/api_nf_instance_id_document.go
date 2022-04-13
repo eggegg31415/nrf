@@ -14,18 +14,18 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/free5gc/http_wrapper"
-	"github.com/free5gc/nrf/logger"
-	"github.com/free5gc/nrf/producer"
+	"github.com/free5gc/nrf/internal/logger"
+	"github.com/free5gc/nrf/internal/sbi/producer"
 	"github.com/free5gc/openapi"
 	"github.com/free5gc/openapi/models"
+	"github.com/free5gc/util/httpwrapper"
 )
 
 // DeregisterNFInstance - Deregisters a given NF Instance
 func HTTPDeregisterNFInstance(c *gin.Context) {
 	// parse nfInstanceId
 
-	req := http_wrapper.NewRequest(c.Request, nil)
+	req := httpwrapper.NewRequest(c.Request, nil)
 	req.Params["nfInstanceID"] = c.Params.ByName("nfInstanceID")
 
 	httpResponse := producer.HandleNFDeregisterRequest(req)
@@ -46,7 +46,7 @@ func HTTPDeregisterNFInstance(c *gin.Context) {
 
 // GetNFInstance - Read the profile of a given NF Instance
 func HTTPGetNFInstance(c *gin.Context) {
-	req := http_wrapper.NewRequest(c.Request, nil)
+	req := httpwrapper.NewRequest(c.Request, nil)
 	req.Params["nfInstanceID"] = c.Params.ByName("nfInstanceID")
 
 	httpResponse := producer.HandleGetNFInstanceRequest(req)
@@ -98,7 +98,7 @@ func HTTPRegisterNFInstance(c *gin.Context) {
 	}
 
 	// step 3: encapsulate the request by http_wrapper package
-	req := http_wrapper.NewRequest(c.Request, nfprofile)
+	req := httpwrapper.NewRequest(c.Request, nfprofile)
 
 	// step 4: call producer
 	httpResponse := producer.HandleNFRegisterRequest(req)
@@ -137,7 +137,7 @@ func HTTPUpdateNFInstance(c *gin.Context) {
 		return
 	}
 
-	req := http_wrapper.NewRequest(c.Request, nil)
+	req := httpwrapper.NewRequest(c.Request, nil)
 	req.Params["nfInstanceID"] = c.Params.ByName("nfInstanceID")
 	req.Body = requestBody
 

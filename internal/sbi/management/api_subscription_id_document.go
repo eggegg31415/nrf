@@ -14,16 +14,16 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/free5gc/http_wrapper"
-	"github.com/free5gc/nrf/logger"
-	"github.com/free5gc/nrf/producer"
+	"github.com/free5gc/nrf/internal/logger"
+	"github.com/free5gc/nrf/internal/sbi/producer"
 	"github.com/free5gc/openapi"
 	"github.com/free5gc/openapi/models"
+	"github.com/free5gc/util/httpwrapper"
 )
 
 // RemoveSubscription - Deletes a subscription
 func HTTPRemoveSubscription(c *gin.Context) {
-	req := http_wrapper.NewRequest(c.Request, nil)
+	req := httpwrapper.NewRequest(c.Request, nil)
 	req.Params["subscriptionID"] = c.Params.ByName("subscriptionID")
 
 	httpResponse := producer.HandleRemoveSubscriptionRequest(req)
@@ -57,7 +57,7 @@ func HTTPUpdateSubscription(c *gin.Context) {
 		return
 	}
 
-	req := http_wrapper.NewRequest(c.Request, nil)
+	req := httpwrapper.NewRequest(c.Request, nil)
 	req.Params["subscriptionID"] = c.Params.ByName("subscriptionID")
 	req.Body = requestBody
 

@@ -6,8 +6,8 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/free5gc/nrf/factory"
-	"github.com/free5gc/nrf/logger"
+	"github.com/free5gc/nrf/internal/logger"
+	"github.com/free5gc/nrf/pkg/factory"
 	"github.com/free5gc/openapi/models"
 )
 

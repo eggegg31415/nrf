@@ -14,11 +14,11 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/free5gc/http_wrapper"
-	"github.com/free5gc/nrf/logger"
-	"github.com/free5gc/nrf/producer"
+	"github.com/free5gc/nrf/internal/logger"
+	"github.com/free5gc/nrf/internal/sbi/producer"
 	"github.com/free5gc/openapi"
 	"github.com/free5gc/openapi/models"
+	"github.com/free5gc/util/httpwrapper"
 )
 
 // SearchNFInstances - Search a collection of NF Instances
@@ -30,7 +30,7 @@ func HTTPSearchNFInstances(c *gin.Context) {
 	// logger.DiscoveryLog.Infoln("requesterNFType: ", searchNFInstance.RequesterNFType)
 	// logger.DiscoveryLog.Infoln("ChfSupportedPlmn: ", searchNFInstance.ChfSupportedPlmn)
 
-	req := http_wrapper.NewRequest(c.Request, nil)
+	req := httpwrapper.NewRequest(c.Request, nil)
 	req.Query = c.Request.URL.Query()
 	httpResponse := producer.HandleNFDiscoveryRequest(req)
 

@@ -10,14 +10,14 @@ import (
 	"github.com/mitchellh/mapstructure"
 	"go.mongodb.org/mongo-driver/bson"
 
-	"github.com/free5gc/MongoDBLibrary"
-	"github.com/free5gc/nrf/factory"
-	"github.com/free5gc/nrf/logger"
+	"github.com/free5gc/nrf/internal/logger"
+	"github.com/free5gc/nrf/pkg/factory"
 	"github.com/free5gc/openapi"
 	"github.com/free5gc/openapi/models"
+	"github.com/free5gc/util/mongoapi"
 )
 
-const NRF_NFINST_RES_URI_PREFIX = factory.NRF_NFM_RES_URI_PREFIX + "/nf-instances/"
+const NRF_NFINST_RES_URI_PREFIX = factory.NrfNfmResUriPrefix + "/nf-instances/"
 
 func NnrfNFManagementDataModel(nf *models.NfProfile, nfprofile models.NfProfile) error {
 	if nfprofile.NfInstanceId != "" {
@@ -415,12 +415,14 @@ func SetLocationHeader(nfprofile models.NfProfile) string {
 	nfType := nfprofile.NfType
 	filter := bson.M{"nfType": nfType}
 
-	ul := MongoDBLibrary.RestfulAPIGetOne(collName, filter)
+	ul, err := mongoapi.RestfulAPIGetOne(collName, filter)
+	if err != nil {
+		logger.ManagementLog.Errorf("SetLocationHeader err: %+v", err)
+	}
 
 	var originalUL UriList
-	err := mapstructure.Decode(ul, &originalUL)
-	if err != nil {
-		panic(err)
+	if err1 := mapstructure.Decode(ul, &originalUL); err1 != nil {
+		logger.ManagementLog.Errorf("SetLocationHeader err: %+v", err1)
 	}
 
 	// obtain location header = NF URI
@@ -429,29 +431,37 @@ func SetLocationHeader(nfprofile models.NfProfile) string {
 
 	tmp, err := json.Marshal(modifyUL)
 	if err != nil {
-		logger.ManagementLog.Error(err)
+		logger.ManagementLog.Errorf("SetLocationHeader err: %+v", err)
 	}
 	putData := bson.M{}
 	err = json.Unmarshal(tmp, &putData)
 	if err != nil {
-		logger.ManagementLog.Error(err)
+		logger.ManagementLog.Errorf("SetLocationHeader err: %+v", err)
 	}
 
-	if MongoDBLibrary.RestfulAPIPutOne(collName, filter, putData) {
-		logger.ManagementLog.Info("urilist update")
+	existed, err := mongoapi.RestfulAPIPutOne(collName, filter, putData)
+	if err != nil {
+		logger.ManagementLog.Errorf("SetLocationHeader err: %+v", err)
 	} else {
-		logger.ManagementLog.Info("urilist create")
+		if existed {
+			logger.ManagementLog.Info("urilist update")
+		} else {
+			logger.ManagementLog.Info("urilist create")
+		}
 	}
 
 	return locationHeader[0]
 }
 
 func setUriListByFilter(filter bson.M, uriList *[]string) {
-	filterNfTypeResultsRaw := MongoDBLibrary.RestfulAPIGetMany("Subscriptions", filter)
-	var filterNfTypeResults []models.NrfSubscriptionData
-	err := openapi.Convert(filterNfTypeResultsRaw, &filterNfTypeResults)
+	filterNfTypeResultsRaw, err := mongoapi.RestfulAPIGetMany("Subscriptions", filter)
 	if err != nil {
-		logger.ManagementLog.Error(err)
+		logger.ManagementLog.Errorf("setUriListByFilter err: %+v", err)
+	}
+
+	var filterNfTypeResults []models.NrfSubscriptionData
+	if err := openapi.Convert(filterNfTypeResultsRaw, &filterNfTypeResults); err != nil {
+		logger.ManagementLog.Errorf("setUriListByFilter err: %+v", err)
 	}
 
 	for _, subscr := range filterNfTypeResults {

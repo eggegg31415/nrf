@@ -15,9 +15,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/free5gc/logger_util"
-	"github.com/free5gc/nrf/factory"
-	"github.com/free5gc/nrf/logger"
+	"github.com/free5gc/nrf/internal/logger"
+	"github.com/free5gc/nrf/pkg/factory"
+	logger_util "github.com/free5gc/util/logger"
 )
 
 // Route is the information for every URI.
@@ -43,7 +43,7 @@ func NewRouter() *gin.Engine {
 }
 
 func AddService(engine *gin.Engine) *gin.RouterGroup {
-	group := engine.Group(factory.NRF_NFM_RES_URI_PREFIX)
+	group := engine.Group(factory.NrfNfmResUriPrefix)
 
 	for _, route := range routes {
 		switch route.Method {

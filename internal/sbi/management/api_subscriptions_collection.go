@@ -14,11 +14,11 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/free5gc/http_wrapper"
-	"github.com/free5gc/nrf/logger"
-	"github.com/free5gc/nrf/producer"
+	"github.com/free5gc/nrf/internal/logger"
+	"github.com/free5gc/nrf/internal/sbi/producer"
 	"github.com/free5gc/openapi"
 	"github.com/free5gc/openapi/models"
+	"github.com/free5gc/util/httpwrapper"
 )
 
 // Provide SubsciptionId for each request (add by one each time)
@@ -55,7 +55,7 @@ func HTTPCreateSubscription(c *gin.Context) {
 		return
 	}
 
-	req := http_wrapper.NewRequest(c.Request, subscription)
+	req := httpwrapper.NewRequest(c.Request, subscription)
 
 	httpResponse := producer.HandleCreateSubscriptionRequest(req)
 	responseBody, err := openapi.Serialize(httpResponse.Body, "application/json")

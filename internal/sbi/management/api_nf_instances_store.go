@@ -14,16 +14,16 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/free5gc/http_wrapper"
-	"github.com/free5gc/nrf/logger"
-	"github.com/free5gc/nrf/producer"
+	"github.com/free5gc/nrf/internal/logger"
+	"github.com/free5gc/nrf/internal/sbi/producer"
 	"github.com/free5gc/openapi"
 	"github.com/free5gc/openapi/models"
+	"github.com/free5gc/util/httpwrapper"
 )
 
 // GetNFInstances - Retrieves a collection of NF Instances
 func HTTPGetNFInstances(c *gin.Context) {
-	req := http_wrapper.NewRequest(c.Request, nil)
+	req := httpwrapper.NewRequest(c.Request, nil)
 	req.Query = c.Request.URL.Query()
 
 	httpResponse := producer.HandleGetNFInstancesRequest(req)

@@ -7,19 +7,18 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
-	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
 
-	"github.com/free5gc/MongoDBLibrary"
-	"github.com/free5gc/TimeDecode"
-	"github.com/free5gc/http_wrapper"
-	"github.com/free5gc/nrf/context"
-	"github.com/free5gc/nrf/logger"
+	"github.com/free5gc/nrf/internal/context"
+	"github.com/free5gc/nrf/internal/logger"
 	"github.com/free5gc/openapi/models"
+	"github.com/free5gc/util/httpwrapper"
+	timedecode "github.com/free5gc/util/mapstruct"
+	"github.com/free5gc/util/mongoapi"
 )
 
-func HandleNFDiscoveryRequest(request *http_wrapper.Request) *http_wrapper.Response {
+func HandleNFDiscoveryRequest(request *httpwrapper.Request) *httpwrapper.Response {
 	// Get all query parameters
 	logger.DiscoveryLog.Infoln("Handle NFDiscoveryRequest")
 
@@ -28,15 +27,15 @@ func HandleNFDiscoveryRequest(request *http_wrapper.Request) *http_wrapper.Respo
 	// step 4: process the return value from step 3
 	if response != nil {
 		// status code is based on SPEC, and option headers
-		return http_wrapper.NewResponse(http.StatusOK, nil, response)
+		return httpwrapper.NewResponse(http.StatusOK, nil, response)
 	} else if problemDetails != nil {
-		return http_wrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
+		return httpwrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
 	}
 	problemDetails = &models.ProblemDetails{
 		Status: http.StatusForbidden,
 		Cause:  "UNSPECIFIED",
 	}
-	return http_wrapper.NewResponse(http.StatusForbidden, nil, problemDetails)
+	return httpwrapper.NewResponse(http.StatusForbidden, nil, problemDetails)
 }
 
 func NFDiscoveryProcedure(queryParameters url.Values) (response *models.SearchResult,
@@ -80,14 +79,29 @@ func NFDiscoveryProcedure(queryParameters url.Values) (response *models.SearchRe
 	logger.DiscoveryLog.Traceln("Query filter: ", filter)
 
 	// Use the filter to find documents
-	nfProfilesRaw := MongoDBLibrary.RestfulAPIGetMany("NfProfile", filter)
+	nfProfilesRaw, err := mongoapi.RestfulAPIGetMany("NfProfile", filter)
+	if err != nil {
+		logger.DiscoveryLog.Errorf("NFDiscoveryProcedure err: %+v", err)
+		problemDetails := &models.ProblemDetails{
+			Title:  "System failure",
+			Status: http.StatusInternalServerError,
+			Detail: err.Error(),
+			Cause:  "SYSTEM_FAILURE",
+		}
+		return nil, problemDetails
+	}
 
 	// nfProfile data for response
 	var nfProfilesStruct []models.NfProfile
-
-	nfProfilesStruct, err := TimeDecode.Decode(nfProfilesRaw, time.RFC3339)
-	if err != nil {
-		logger.DiscoveryLog.Warnln("NF Profile Raw decode error: ", nfProfilesStruct)
+	if err := timedecode.Decode(nfProfilesRaw, &nfProfilesStruct); err != nil {
+		logger.DiscoveryLog.Errorf("NF Profile Raw decode error: %+v", err)
+		problemDetails := &models.ProblemDetails{
+			Title:  "System failure",
+			Status: http.StatusInternalServerError,
+			Detail: err.Error(),
+			Cause:  "SYSTEM_FAILURE",
+		}
+		return nil, problemDetails
 	}
 
 	// handle ipv4 & ipv6

@@ -10,7 +10,7 @@ import (
 
 	"gopkg.in/yaml.v2"
 
-	"github.com/free5gc/nrf/logger"
+	"github.com/free5gc/nrf/internal/logger"
 )
 
 var NrfConfig Config
@@ -33,9 +33,9 @@ func InitConfigFactory(f string) error {
 func CheckConfigVersion() error {
 	currentVersion := NrfConfig.GetVersion()
 
-	if currentVersion != NRF_EXPECTED_CONFIG_VERSION {
+	if currentVersion != NrfExpectedConfigVersion {
 		return fmt.Errorf("config version is [%s], but expected is [%s].",
-			currentVersion, NRF_EXPECTED_CONFIG_VERSION)
+			currentVersion, NrfExpectedConfigVersion)
 	}
 
 	logger.CfgLog.Infof("config version [%s]", currentVersion)
