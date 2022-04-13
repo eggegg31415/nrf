@@ -5,6 +5,8 @@ go 1.14
 require (
 	github.com/antonfisher/nested-logrus-formatter v1.3.1
 	github.com/asaskevich/govalidator v0.0.0-20210307081110-f21760c49a8d
+	github.com/free5gc/http_wrapper v1.0.0 // indirect
+	github.com/free5gc/logger_util v1.0.0
 	github.com/free5gc/openapi v1.0.4
 	github.com/free5gc/util v1.0.2
 	github.com/gin-gonic/gin v1.7.3
@@ -16,3 +18,5 @@ require (
 	go.mongodb.org/mongo-driver v1.7.1
 	gopkg.in/yaml.v2 v2.4.0
 )
+
+replace github.com/free5gc/openapi => /home/yian/test/openapi

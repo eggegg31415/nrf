@@ -15,7 +15,6 @@ import (
 	"github.com/free5gc/nrf/internal/logger"
 	"github.com/free5gc/openapi/Nnrf_NFManagement"
 	"github.com/free5gc/openapi/models"
-	"github.com/free5gc/openapi"
 	"github.com/free5gc/util/httpwrapper"
 	timedecode "github.com/free5gc/util/mapstruct"
 	"github.com/free5gc/util/mongoapi"
@@ -24,12 +23,6 @@ import (
 func HandleNFDeregisterRequest(request *httpwrapper.Request) *httpwrapper.Response {
 	logger.ManagementLog.Infoln("Handle NFDeregisterRequest")
 	nfInstanceId := request.Params["nfInstanceID"]
-
-	pubKeyPath  := "../support/TLS/nrf.pem"
-	response := openapi.OAuthVerify(request, "nnrf-nfm", pubKeyPath)
-	if response != nil {
-		return response
-	}
 
 	problemDetails := NFDeregisterProcedure(nfInstanceId)
 

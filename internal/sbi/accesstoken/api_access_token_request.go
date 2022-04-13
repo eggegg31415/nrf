@@ -50,7 +50,18 @@ func HTTPAccessTokenRequest(c *gin.Context) {
 			reflect.ValueOf(&accessTokenReq).Elem().FieldByName(name).SetString(value[0])
 		} else {
 			plmnid := models.PlmnId{}
-			json.Unmarshal([]byte(value[0]), &plmnid)
+			err = json.Unmarshal([]byte(value[0]), &plmnid)
+			if err != nil {
+				problemDetail := "[Request Body] " + err.Error()
+				rsp := models.ProblemDetails{
+					Title:  "Jsone Unmarshal Error",
+					Status: http.StatusBadRequest,
+					Detail: problemDetail,
+				}
+				logger.AccessTokenLog.Errorln(problemDetail)
+				c.JSON(http.StatusBadRequest, rsp)
+				return
+			}
 			reflectvalue := reflect.ValueOf(&plmnid)
 			reflect.ValueOf(&accessTokenReq).Elem().FieldByName(name).Set(reflectvalue)
 		}

@@ -12,9 +12,9 @@ import (
 	"github.com/mitchellh/mapstructure"
 	"go.mongodb.org/mongo-driver/bson"
 
-
 	nrf_context "github.com/free5gc/nrf/internal/context"
 	"github.com/free5gc/nrf/internal/logger"
+	"github.com/free5gc/nrf/pkg/factory"
 	"github.com/free5gc/openapi/models"
 	"github.com/free5gc/util/httpwrapper"
 	"github.com/free5gc/util/mongoapi"
@@ -67,7 +67,7 @@ func AccessTokenProcedure(request models.AccessTokenReq) (response *models.Acces
 	accessTokenClaims.IssuedAt = int64(now)
 
 	// Use RSA as a signing method
-	privKeyPath := "../support/TLS/nrf.key"
+	privKeyPath := factory.NrfConfig.TLSKeyPath()
 	signBytes, err := ioutil.ReadFile(privKeyPath)
 	if err != nil {
 		logger.AccessTokenLog.Warnln("SigningBytes error: ", err)
@@ -130,10 +130,17 @@ func AccessTokenScopeCheck(req models.AccessTokenReq) (errResponse *models.Acces
 	}
 
 	filter := bson.M{"nfInstanceId": reqNfInstanceId}
-	nfInfo, _ := mongoapi.RestfulAPIGetOne(collName, filter)
+	nfInfo, err := mongoapi.RestfulAPIGetOne(collName, filter)
+	if err != nil {
+		logger.AccessTokenLog.Errorln("mongoapi RestfulAPIGetOne error: " + err.Error())
+		errResponse = &models.AccessTokenErr{
+			Error: "invalid_client",
+		}
+		return errResponse
+	}
 
 	nfProfile := models.NfProfile{}
-	err := mapstructure.Decode(nfInfo, &nfProfile)
+	err = mapstructure.Decode(nfInfo, &nfProfile)
 	if err != nil {
 		logger.AccessTokenLog.Errorln("Certificate verify error: " + err.Error())
 		errResponse = &models.AccessTokenErr{
@@ -200,16 +207,25 @@ func AccessTokenScopeCheck(req models.AccessTokenReq) (errResponse *models.Acces
 	uri := cert.URIs[0]
 	id := strings.Split(uri.Opaque, ":")[1]
 	if id == reqNfInstanceId {
-		logger.AccessTokenLog.Errorln("Certificate verify error: NF Instance Id mismatch (Expected ID: " + reqNfInstanceId + " Received ID: " + id + ")")
+		logger.AccessTokenLog.Errorln("Certificate verify error: NF Instance Id mismatch (Expected ID: " +
+			reqNfInstanceId + " Received ID: " + id + ")")
 		errResponse = &models.AccessTokenErr{
 			Error: "invalid_client",
 		}
 		return errResponse
 	}
 
-	// filter = bson.M{"nfType": reqTargetNfType}
-	filter = bson.M{"nfType": reqNfType}
-	nfInfo, _ = mongoapi.RestfulAPIGetOne(collName, filter)
+	filter = bson.M{"nfType": reqTargetNfType}
+	nfInfo, err = mongoapi.RestfulAPIGetOne(collName, filter)
+	if err != nil {
+		logger.AccessTokenLog.Errorln("mongoapi.RestfulApiGetOne error: " + err.Error())
+		errResponse = &models.AccessTokenErr{
+			Error: "invalid_client",
+		}
+		return errResponse
+	}
+
+	nfServices := *nfProfile.NfServices
 	nfProfile = models.NfProfile{}
 	err = mapstructure.Decode(nfInfo, &nfProfile)
 	if err != nil {
@@ -219,7 +235,6 @@ func AccessTokenScopeCheck(req models.AccessTokenReq) (errResponse *models.Acces
 		}
 		return errResponse
 	}
-	nfServices := *nfProfile.NfServices
 
 	scopes := strings.Split(req.Scope, " ")
 
